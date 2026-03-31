@@ -8,6 +8,8 @@ __author__ = "Your Name"
 
 # 只导入已实现的模块
 from obsidian_kb.config import Config, get_config, DEFAULT_CONFIG_PATH
+from obsidian_kb.link_resolver import LinkResolver, LinkInfo
+from obsidian_kb.vault import Vault, NoteInfo, NoteContent
 
 # 以下模块将在后续任务中实现
 # from obsidian_kb.utils.id_generator import generate_note_id
