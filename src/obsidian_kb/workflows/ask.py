@@ -147,7 +147,7 @@ class AskWorkflow(BaseWorkflow):
         keywords: List[str],
         max_results: int
     ) -> List[SearchResult]:
-        """搜索笔记。
+        """搜索笔记，使用多因素评分。
 
         Args:
             keywords: 关键词列表
@@ -157,7 +157,6 @@ class AskWorkflow(BaseWorkflow):
             搜索结果列表
         """
         results = []
-        parser = MarkdownParser()
 
         # 搜索所有 .md 文件
         for md_file in self.vault.path.rglob("*.md"):
@@ -168,29 +167,46 @@ class AskWorkflow(BaseWorkflow):
             try:
                 content = md_file.read_text(encoding="utf-8")
 
-                # 计算相关性
+                # 提取标题
+                fm_obj = parse_frontmatter(content)
+                title = fm_obj.title if fm_obj else md_file.stem
+
+                # 多因素相关性评分
                 relevance = 0.0
                 highlights = []
 
                 for keyword in keywords:
-                    # 在内容中搜索
-                    count = content.lower().count(keyword)
-                    if count > 0:
-                        relevance += count * 0.1
+                    kw_lower = keyword.lower()
+
+                    # 标题匹配 (权重: 2.0) - 标题中的关键词更重要
+                    if kw_lower in title.lower():
+                        relevance += 2.0
                         highlights.append(keyword)
 
+                    # 内容频率 (权重: 0.1)
+                    count = content.lower().count(kw_lower)
+                    if count > 0:
+                        relevance += count * 0.1
+                        if keyword not in highlights:
+                            highlights.append(keyword)
+
+                    # 标题匹配 (权重: 0.5) - 标题行中包含关键词
+                    for line in content.split('\n'):
+                        if line.startswith('#') and kw_lower in line.lower():
+                            relevance += 0.5
+                            break
+
                 if relevance > 0:
-                    # 提取标题
-                    fm_obj = parse_frontmatter(content)
-                    title = fm_obj.title if fm_obj else md_file.stem
+                    # 归一化到 0-1
+                    relevance = min(relevance / 10, 1.0)
 
                     # 提取摘要
-                    snippet = self._extract_snippet(content, keywords[0])
+                    snippet = self._extract_snippet(content, keywords)
 
                     results.append(SearchResult(
                         path=str(md_file.relative_to(self.vault.path)),
                         title=title,
-                        relevance=min(relevance, 1.0),
+                        relevance=relevance,
                         snippet=snippet,
                         highlights=highlights
                     ))
@@ -206,14 +222,14 @@ class AskWorkflow(BaseWorkflow):
     def _extract_snippet(
         self,
         content: str,
-        keyword: str,
+        keywords: List[str],
         length: int = 200
     ) -> str:
         """提取包含关键词的摘要。
 
         Args:
             content: 笔记内容
-            keyword: 关键词
+            keywords: 关键词列表
             length: 摘要长度
 
         Returns:
@@ -225,16 +241,30 @@ class AskWorkflow(BaseWorkflow):
             if len(parts) >= 3:
                 content = parts[2]
 
-        # 找到关键词位置
-        pos = content.lower().find(keyword.lower())
-        if pos == -1:
+        # 找到第一个匹配的关键词位置
+        best_pos = -1
+        for keyword in keywords:
+            pos = content.lower().find(keyword.lower())
+            if pos != -1:
+                if best_pos == -1 or pos < best_pos:
+                    best_pos = pos
+
+        if best_pos == -1:
             return content[:length].strip()
 
         # 提取上下文
-        start = max(0, pos - 50)
-        end = min(len(content), pos + length - 50)
+        start = max(0, best_pos - 50)
+        end = min(len(content), best_pos + length - 50)
 
         snippet = content[start:end].strip()
+
+        # 添加省略号
+        if start > 0:
+            snippet = "..." + snippet
+        if end < len(content):
+            snippet = snippet + "..."
+
+        return snippet
 
         # 添加省略号
         if start > 0:
