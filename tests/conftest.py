@@ -50,6 +50,36 @@ def temp_config_file(temp_vault):
 
     yield config_path
 
+
+@pytest.fixture(autouse=True)
+def isolated_config_env(temp_vault):
+    """Provide isolated config environment for tests to prevent user config pollution."""
+    import os
+    import json
+    from obsidian_kb.config import reset_config
+
+    config_path = temp_vault.parent / "test_config.json"
+    config_content = {
+        "vault_path": str(temp_vault),
+        "default_area": "编程",
+        "quiet_mode": False,
+        "auto_confirm_threshold": 0.8,
+        "auto_confirm_actions": ["moc_link", "tag_extraction"],
+        "templates": {}
+    }
+
+    with open(config_path, "w", encoding="utf-8") as f:
+        json.dump(config_content, f)
+
+    os.environ["OBSIDIAN_KB_CONFIG"] = str(config_path)
+    reset_config()
+
+    yield config_path
+
+    if "OBSIDIAN_KB_CONFIG" in os.environ:
+        del os.environ["OBSIDIAN_KB_CONFIG"]
+    reset_config()
+
 @pytest.fixture
 def sample_note_content():
     """示例笔记内容."""

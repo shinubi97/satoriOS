@@ -25,6 +25,16 @@ from obsidian_kb.backup import BackupManager
 
 # ========== 辅助函数 ==========
 
+import os
+
+def _get_config_path() -> Path:
+    """Get config file path, respecting environment variable."""
+    env_config = os.environ.get("OBSIDIAN_KB_CONFIG")
+    if env_config:
+        return Path(env_config)
+    return Path.home() / ".config" / "obsidian-kb" / "config.json"
+
+
 def _print_result(result):
     """打印工作流结果。"""
     if result.success:
@@ -603,7 +613,7 @@ def set(ctx, key, value):
             return
 
     # 保存配置
-    config_path = Path.home() / ".config" / "obsidian-kb" / "config.json"
+    config_path = _get_config_path()
     config_path.parent.mkdir(parents=True, exist_ok=True)
 
     data = {
@@ -627,7 +637,7 @@ def set(ctx, key, value):
 @click.pass_context
 def init(ctx, vault, area):
     """初始化配置。"""
-    config_path = Path.home() / ".config" / "obsidian-kb" / "config.json"
+    config_path = _get_config_path()
     config_path.parent.mkdir(parents=True, exist_ok=True)
 
     vault_path = Path(vault).resolve()
