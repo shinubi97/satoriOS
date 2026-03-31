@@ -47,7 +47,7 @@ date: 2026-03-01
 """)
 
         # 创建 MOC 目录
-        mocs_path = vault_path / "40_资源" / "mocs"
+        mocs_path = vault_path / "40_知识库" / "moc"
         mocs_path.mkdir(parents=True, exist_ok=True)
 
         yield vault_path

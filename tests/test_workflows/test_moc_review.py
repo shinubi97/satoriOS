@@ -47,7 +47,7 @@ date: 2026-03-01
 """)
 
         # 创建 MOC
-        mocs_path = vault_path / "40_资源" / "mocs"
+        mocs_path = vault_path / "40_知识库" / "moc"
         mocs_path.mkdir(parents=True, exist_ok=True)
         (mocs_path / "moc-编程.md").write_text("""---
 id: kb-20260301-100000-0003
@@ -91,7 +91,7 @@ date: 2026-03-01
         vault = Vault(setup_vault)
         workflow = MocReviewWorkflow(vault, config)
 
-        result = workflow.execute(moc_path="40_资源/mocs/moc-编程.md")
+        result = workflow.execute(moc_path="40_知识库/moc/moc-编程.md")
 
         assert result.success is True
 
@@ -113,7 +113,7 @@ date: 2026-03-01
         workflow = MocReviewWorkflow(vault, config)
 
         # 添加一个失效链接到 MOC
-        moc_path = setup_vault / "40_资源" / "mocs" / "moc-编程.md"
+        moc_path = setup_vault / "40_知识库" / "moc" / "moc-编程.md"
         content = moc_path.read_text(encoding="utf-8")
         moc_path.write_text(content + "\n- [[不存在的笔记]]", encoding="utf-8")
 
@@ -165,13 +165,13 @@ class TestMOCReviewResult:
     def test_result_creation(self):
         """测试创建回顾结果。"""
         result = MOCReviewResult(
-            moc_path="40_资源/mocs/moc-编程.md",
+            moc_path="40_知识库/moc/moc-编程.md",
             area="编程",
             total_links=10,
             broken_links=2
         )
 
-        assert result.moc_path == "40_资源/mocs/moc-编程.md"
+        assert result.moc_path == "40_知识库/moc/moc-编程.md"
         assert result.area == "编程"
         assert result.total_links == 10
         assert result.broken_links == 2

@@ -50,7 +50,7 @@ class MocsWorkflow(BaseWorkflow):
         Returns:
             WorkflowResult 包含 MOC 列表
         """
-        mocs_path = self.vault.path / "40_资源" / "mocs"
+        mocs_path = self.vault.path / "40_知识库" / "moc"
 
         if not mocs_path.exists():
             return WorkflowResult(
@@ -90,7 +90,7 @@ class MocsWorkflow(BaseWorkflow):
         Returns:
             WorkflowResult 包含 MOC 内容
         """
-        moc_path = self.vault.path / "40_资源" / "mocs" / f"moc-{area}.md"
+        moc_path = self.vault.path / "40_知识库" / "moc" / f"moc-{area}.md"
 
         if not moc_path.exists():
             return WorkflowResult(
@@ -132,7 +132,7 @@ class MocsWorkflow(BaseWorkflow):
         Returns:
             WorkflowResult 包含创建的 MOC
         """
-        mocs_path = self.vault.path / "40_资源" / "mocs"
+        mocs_path = self.vault.path / "40_知识库" / "moc"
         mocs_path.mkdir(parents=True, exist_ok=True)
 
         moc_file = mocs_path / f"moc-{area}.md"
@@ -176,7 +176,7 @@ class MocsWorkflow(BaseWorkflow):
         Returns:
             WorkflowResult 包含更新结果
         """
-        moc_path = self.vault.path / "40_资源" / "mocs" / f"moc-{area}.md"
+        moc_path = self.vault.path / "40_知识库" / "moc" / f"moc-{area}.md"
 
         if not moc_path.exists():
             # 如果不存在，创建新的

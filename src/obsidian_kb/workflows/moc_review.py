@@ -60,7 +60,7 @@ class MocReviewWorkflow(BaseWorkflow):
         if moc_path:
             target_path = self.vault.path / moc_path
         elif area:
-            target_path = self.vault.path / "40_资源" / "mocs" / f"moc-{area}.md"
+            target_path = self.vault.path / "40_知识库" / "moc" / f"moc-{area}.md"
         else:
             return WorkflowResult(
                 success=False,
@@ -235,7 +235,7 @@ class MocReviewWorkflow(BaseWorkflow):
         Returns:
             WorkflowResult 包含所有 MOC 回顾结果
         """
-        mocs_path = self.vault.path / "40_资源" / "mocs"
+        mocs_path = self.vault.path / "40_知识库" / "moc"
 
         if not mocs_path.exists():
             return WorkflowResult(
