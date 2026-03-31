@@ -20,6 +20,7 @@ from obsidian_kb.workflows.health_check import HealthCheckWorkflow
 from obsidian_kb.workflows.mocs import MocsWorkflow
 from obsidian_kb.workflows.moc_review import MocReviewWorkflow
 from obsidian_kb.workflows.import_workflow import ImportWorkflow
+from obsidian_kb.workflows.open import OpenWorkflow
 from obsidian_kb.backup import BackupManager
 
 
@@ -303,6 +304,57 @@ def ask(ctx, question, max_results):
     workflow = AskWorkflow(ctx.obj['vault'], ctx.obj['config'])
     result = workflow.execute(question=question, max_results=max_results)
     _print_result(result)
+
+
+# ========== 打开笔记 ==========
+
+@cli.command('view')
+@click.argument('note_name')
+@click.pass_context
+def view_note(ctx, note_name):
+    """打开任意笔记（支持路径或模糊匹配）。"""
+    workflow = OpenWorkflow(ctx.obj['vault'], ctx.obj['config'])
+    result = workflow.execute(note_name=note_name)
+    _print_note_detail(result)
+
+
+def _print_note_detail(result):
+    """打印笔记详情。"""
+    if not result.success:
+        click.secho(f"❌ {result.message}", fg='red')
+        for s in result.suggestions:
+            click.echo(f"  💡 {s}")
+        return
+
+    click.secho(f"✅ {result.message}", fg='green')
+
+    if result.data and result.data.get('note'):
+        note = result.data['note']
+        click.echo("\n" + "━" * 40)
+        click.echo(f"📍 路径: {note.path}")
+        click.echo(f"🏷️ 类型: {note.note_type}")
+        if note.area:
+            click.echo(f"📁 领域: {note.area}")
+        if note.status:
+            click.echo(f"📊 状态: {note.status}")
+
+        click.echo("\n📄 内容预览:")
+        for line in note.content_preview.split('\n')[:15]:
+            if line.strip():
+                click.echo(f"  {line}")
+
+        if note.outgoing_links:
+            click.echo(f"\n🔗 外链 ({len(note.outgoing_links)}):")
+            for link in note.outgoing_links[:5]:
+                click.echo(f"  • [[{link}]]")
+
+        if note.backlinks:
+            click.echo(f"\n📌 被引用 ({len(note.backlinks)}):")
+            for bl in note.backlinks[:5]:
+                click.echo(f"  • [[{bl}]]")
+
+    for s in result.suggestions:
+        click.echo(f"  💡 {s}")
 
 
 # ========== 回顾 ==========
