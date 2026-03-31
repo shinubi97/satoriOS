@@ -71,6 +71,9 @@ def cli(ctx, vault):
     """Obsidian Knowledge Base 管理工具。"""
     ctx.ensure_object(dict)
 
+    # 重置配置单例，确保每次都读取最新配置文件
+    reset_config()
+
     try:
         config = get_config()
     except ValueError:
