@@ -93,10 +93,23 @@ def _print_daily_plan(result):
             if isinstance(p, ProjectSummary):
                 name = p.name
                 status = p.status
+                goals = p.goals
+                timeline = p.timeline
+                pending = p.pending_todos
             else:
                 name = p.get('name', 'N/A')
                 status = p.get('status', '进行中')
-            click.echo(f"   • {name} [{status}]")
+                goals = p.get('goals', [])
+                timeline = p.get('timeline')
+                pending = p.get('pending_todos', 0)
+
+            click.echo(f"\n   📁 {name} [{status}]")
+            if timeline:
+                click.echo(f"      ⏰ 截止: {timeline}")
+            if pending > 0:
+                click.echo(f"      ✅ 待办: {pending} 项")
+            if goals:
+                click.echo(f"      🎯 目标: {goals[0][:40]}...")
 
         # 待办事项
         if todos:

@@ -29,6 +29,10 @@ class ProjectSummary:
     area: str
     status: str
     progress: str  # 从 frontmatter 或内容中提取
+    goals: List[str] = field(default_factory=list)  # 项目目标
+    timeline: Optional[str] = None  # 时间线/截止日期
+    pending_todos: int = 0  # 未完成待办数量
+    last_update: Optional[str] = None  # 最后更新时间
 
 
 @dataclass
@@ -223,7 +227,11 @@ class StartMyDayWorkflow(BaseWorkflow):
                             name=fm.get("title", md_file.stem),
                             area=area_dir.name,
                             status=status or "进行中",
-                            progress=self._extract_progress(content)
+                            progress=self._extract_progress(content),
+                            goals=self._extract_goals(content, fm),
+                            timeline=fm.get("timeline") or fm.get("截止日期"),
+                            pending_todos=self._count_pending_todos(content),
+                            last_update=fm.get("updated")
                         ))
                 except Exception:
                     continue
@@ -415,3 +423,52 @@ class StartMyDayWorkflow(BaseWorkflow):
                 return line.strip()[:100]
 
         return "进行中"
+
+    def _extract_goals(self, content: str, fm: dict) -> List[str]:
+        """提取项目目标。
+
+        Args:
+            content: 笔记内容
+            fm: frontmatter 字典
+
+        Returns:
+            目标列表
+        """
+        goals = []
+
+        # 从 frontmatter 获取
+        if "goals" in fm:
+            g = fm["goals"]
+            goals = g if isinstance(g, list) else [g]
+            return goals
+
+        # 从内容中提取
+        lines = content.split('\n')
+        in_goals = False
+        for line in lines:
+            if "目标" in line and line.startswith('#'):
+                in_goals = True
+                continue
+            if in_goals and line.startswith('#'):
+                break
+            if in_goals and line.strip().startswith('- [ ]'):
+                goal_text = line.strip()[5:].strip()
+                if goal_text:
+                    goals.append(goal_text)
+
+        return goals[:5]
+
+    def _count_pending_todos(self, content: str) -> int:
+        """统计未完成待办数量。
+
+        Args:
+            content: 笔记内容
+
+        Returns:
+            未完成待办数量
+        """
+        count = 0
+        for line in content.split('\n'):
+            if line.strip().startswith('- [ ]'):
+                count += 1
+        return count

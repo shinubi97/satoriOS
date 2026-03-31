@@ -51,7 +51,7 @@ def temp_config_file(temp_vault):
     yield config_path
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def isolated_config_env(temp_vault):
     """Provide isolated config environment for tests to prevent user config pollution."""
     import os
@@ -75,6 +75,42 @@ def isolated_config_env(temp_vault):
     reset_config()
 
     yield config_path
+
+    if "OBSIDIAN_KB_CONFIG" in os.environ:
+        del os.environ["OBSIDIAN_KB_CONFIG"]
+    reset_config()
+
+
+# Apply isolated config to workflow tests automatically
+@pytest.fixture(autouse=True)
+def _isolated_config_for_workflows(request, temp_vault):
+    """Auto-apply isolated config for workflow tests, but not config tests."""
+    # Skip for config-related tests
+    if "config" in request.node.nodeid:
+        yield
+        return
+
+    import os
+    import json
+    from obsidian_kb.config import reset_config
+
+    config_path = temp_vault.parent / "test_config.json"
+    config_content = {
+        "vault_path": str(temp_vault),
+        "default_area": "编程",
+        "quiet_mode": False,
+        "auto_confirm_threshold": 0.8,
+        "auto_confirm_actions": ["moc_link", "tag_extraction"],
+        "templates": {}
+    }
+
+    with open(config_path, "w", encoding="utf-8") as f:
+        json.dump(config_content, f)
+
+    os.environ["OBSIDIAN_KB_CONFIG"] = str(config_path)
+    reset_config()
+
+    yield
 
     if "OBSIDIAN_KB_CONFIG" in os.environ:
         del os.environ["OBSIDIAN_KB_CONFIG"]
