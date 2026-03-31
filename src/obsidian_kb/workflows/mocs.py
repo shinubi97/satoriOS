@@ -31,6 +31,7 @@ class MOCContent:
     projects: List[MOCEntry] = field(default_factory=list)
     researches: List[MOCEntry] = field(default_factory=list)
     brainstorms: List[MOCEntry] = field(default_factory=list)
+    knowledge: List[MOCEntry] = field(default_factory=list)
 
 
 class MocsWorkflow(BaseWorkflow):
@@ -261,6 +262,15 @@ class MocsWorkflow(BaseWorkflow):
                         entry.note_type = "brainstorm"
                         moc_content.brainstorms.append(entry)
 
+        # 收集知识库笔记
+        knowledge_path = self.vault.path / "40_知识库" / area
+        if knowledge_path.exists():
+            for md_file in knowledge_path.glob("*.md"):
+                entry = self._create_entry(md_file)
+                if entry:
+                    entry.note_type = "knowledge"
+                    moc_content.knowledge.append(entry)
+
         return moc_content
 
     def _create_entry(self, md_file: Path) -> Optional[MOCEntry]:
@@ -349,6 +359,14 @@ class MocsWorkflow(BaseWorkflow):
             lines.append("## 头脑风暴")
             lines.append("")
             for entry in moc.brainstorms:
+                lines.append(f"- [[{entry.title}]]")
+            lines.append("")
+
+        # 知识库
+        if moc.knowledge:
+            lines.append("## 知识库")
+            lines.append("")
+            for entry in moc.knowledge:
                 lines.append(f"- [[{entry.title}]]")
             lines.append("")
 
