@@ -251,3 +251,63 @@ class ReviewWorkflow(BaseWorkflow):
             回顾结果
         """
         return self.execute(research_path, focus="research")
+
+    def review_inbox(self) -> WorkflowResult:
+        """回顾收件箱。
+
+        Returns:
+            回顾结果
+        """
+        inbox_path = self.vault.path / "00_收件箱"
+
+        if not inbox_path.exists():
+            return WorkflowResult(
+                success=True,
+                message="📥 收件箱为空",
+                suggestions=[]
+            )
+
+        inbox_items = list(inbox_path.glob("*.md"))
+
+        if not inbox_items:
+            return WorkflowResult(
+                success=True,
+                message="📥 收件箱为空",
+                suggestions=[]
+            )
+
+        # 按时间排序
+        inbox_items.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+
+        # 构建处理建议
+        suggestions = []
+        created_files = []
+
+        for item in inbox_items[:10]:  # 最多处理 10 个
+            try:
+                content = item.read_text(encoding="utf-8")
+                fm_obj = parse_frontmatter(content)
+                title = fm_obj.title if fm_obj else item.stem
+
+                # 根据内容推断处理建议
+                item_type = fm_obj.type if fm_obj else "idea"
+
+                if item_type == "idea":
+                    suggestions.append(f"[[{title}]] → 建议: /kickoff 或 /research")
+                elif item_type == "project":
+                    suggestions.append(f"[[{title}]] → 建议: 启动项目")
+                else:
+                    suggestions.append(f"[[{title}]] → 建议: 整理或归档")
+
+            except Exception:
+                continue
+
+        return WorkflowResult(
+            success=True,
+            message=f"📥 收件箱待处理: {len(inbox_items)} 项",
+            suggestions=suggestions,
+            data={
+                "inbox_count": len(inbox_items),
+                "items": [str(i.relative_to(self.vault.path)) for i in inbox_items]
+            }
+        )
