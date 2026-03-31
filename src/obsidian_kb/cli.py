@@ -40,6 +40,71 @@ def _print_result(result):
         click.echo(f"  💡 {suggestion}")
 
 
+def _print_daily_plan(result):
+    """打印每日规划报告。"""
+    from datetime import date
+    from obsidian_kb.workflows.start_my_day import DailyPlanData, InboxItem, ProjectSummary, TaskItem
+    today = date.today().isoformat()
+
+    click.echo(f"📅 {today} 每日规划")
+    click.echo("━" * 40)
+
+    if result.data:
+        # 数据可能嵌套在 'plan' 字段中，也可能直接在 data 中
+        plan_data = result.data.get('plan') or result.data
+
+        # 处理 dataclass 或 dict 类型
+        if isinstance(plan_data, DailyPlanData):
+            inbox_count = plan_data.inbox_count
+            inbox_items = plan_data.inbox_items
+            projects = plan_data.active_projects
+            todos = plan_data.todos
+        else:
+            inbox_count = plan_data.get('inbox_count', 0)
+            inbox_items = plan_data.get('inbox_items', [])
+            projects = plan_data.get('active_projects', [])
+            todos = plan_data.get('todos', [])
+
+        # 收件箱
+        click.echo(f"📥 收件箱待处理: {inbox_count} 项")
+
+        if inbox_items:
+            for item in inbox_items[:5]:
+                if isinstance(item, InboxItem):
+                    title = item.title
+                else:
+                    title = item.get('title', 'N/A')
+                click.echo(f"   • {title}")
+
+        # 进行中项目
+        click.echo(f"\n🚀 进行中项目: {len(projects)} 个")
+        for p in projects[:5]:
+            if isinstance(p, ProjectSummary):
+                name = p.name
+                status = p.status
+            else:
+                name = p.get('name', 'N/A')
+                status = p.get('status', '进行中')
+            click.echo(f"   • {name} [{status}]")
+
+        # 待办事项
+        if todos:
+            click.echo(f"\n✅ 待办事项: {len(todos)} 条")
+            for t in todos[:5]:
+                if isinstance(t, TaskItem):
+                    text = t.text
+                else:
+                    text = t.get('text', 'N/A')
+                click.echo(f"   • {text}")
+
+    click.echo("\n" + "━" * 40)
+
+    if result.suggestions:
+        click.echo("💡 今日建议重点:")
+        for i, s in enumerate(result.suggestions[:5], 1):
+            click.echo(f"   {i}. {s}")
+
+
 def _print_moc_list(mocs):
     """打印 MOC 列表。"""
     click.echo("🗺️ MOC 列表")
@@ -48,6 +113,35 @@ def _print_moc_list(mocs):
         link_count = getattr(moc, 'link_count', 0)
         updated = getattr(moc, 'modified_time', '未知')
         click.echo(f"  {moc.path}  ({link_count} 个链接, {updated})")
+
+
+def _print_moc_detail(result):
+    """打印单个 MOC 详情。"""
+    if not result.success:
+        click.secho(f"❌ {result.message}", fg='red')
+        for s in result.suggestions:
+            click.echo(f"  💡 {s}")
+        return
+
+    click.secho(f"✅ {result.message}", fg='green')
+
+    if result.data and result.data.get('moc'):
+        moc = result.data['moc']
+        click.echo("\n" + "━" * 40)
+        click.echo(f"📍 路径: {moc.get('path', 'N/A')}")
+        click.echo(f"🏷️ 领域: {moc.get('area', 'N/A')}")
+
+        # 显示内容摘要
+        content = moc.get('content', '')
+        if content:
+            lines = content.split('\n')
+            click.echo("\n📄 内容预览:")
+            for line in lines[:15]:
+                if line.strip():
+                    click.echo(f"  {line}")
+
+    for s in result.suggestions:
+        click.echo(f"  💡 {s}")
 
 
 def _print_moc_stats(stats):
@@ -101,7 +195,7 @@ def start_my_day(ctx):
     """每日规划工作流。无需参数。"""
     workflow = StartMyDayWorkflow(ctx.obj['vault'], ctx.obj['config'])
     result = workflow.execute()
-    _print_result(result)
+    _print_daily_plan(result)
 
 
 # ========== 项目启动 ==========
@@ -203,11 +297,45 @@ def review(ctx, note_path, focus):
 
     if note_path:
         result = workflow.execute(note_path=note_path, focus=focus)
+        _print_result(result)
     else:
         # 如果没有指定笔记路径，扫描收件箱
         result = workflow.review_inbox()
+        _print_review_inbox(result)
 
-    _print_result(result)
+
+def _print_review_inbox(result):
+    """打印收件箱回顾结果。"""
+    if not result.success:
+        click.secho(f"❌ {result.message}", fg='red')
+        return
+
+    click.echo("📥 收件箱回顾")
+    click.echo("━" * 40)
+
+    if result.data:
+        inbox_count = result.data.get('inbox_count', 0)
+        items = result.data.get('items', [])
+
+        click.echo(f"\n待处理: {inbox_count} 条\n")
+
+        if items:
+            for i, item in enumerate(items[:10], 1):
+                # 从路径中提取文件名
+                import os
+                filename = os.path.basename(item)
+                click.echo(f"{i}. \"{filename}\"")
+
+            click.echo("\n" + "━" * 40)
+            click.echo("\n处理方式:")
+            click.echo("  A. 逐条处理 (使用 /kickoff 或 /research)")
+            click.echo("  B. 批量归档")
+            click.echo("  C. 暂不处理")
+        else:
+            click.echo("✅ 收件箱为空")
+
+    for s in result.suggestions:
+        click.echo(f"  💡 {s}")
 
 
 # ========== 健康检查 ==========
@@ -238,17 +366,34 @@ def list_mocs(ctx):
     """列出所有 MOC。"""
     workflow = MocsWorkflow(ctx.obj['vault'], ctx.obj['config'])
     result = workflow.execute()
-    _print_result(result)
+
+    if result.success and result.data and result.data.get('mocs'):
+        click.echo("🗺️ MOC 列表")
+        click.echo("━" * 40)
+
+        moc_path = ctx.obj['vault'].path / "40_知识库" / "moc"
+        click.echo(f"\n{moc_path.relative_to(ctx.obj['vault'].path)}/")
+
+        for moc in result.data['mocs']:
+            title = moc.get('title', moc.get('path', 'Unknown'))
+            area = moc.get('area', '')
+            click.echo(f"├── {title}")
+            if area:
+                click.echo(f"│   领域: {area}")
+
+        click.echo(f"\n💡 提示: 使用 `obsidian-kb mocs open <名称>` 快速打开")
+    else:
+        _print_result(result)
 
 
-@mocs.command()
+@mocs.command(name='open')
 @click.argument('name')
 @click.pass_context
 def open_moc(ctx, name):
     """打开指定 MOC（模糊匹配）。"""
     workflow = MocsWorkflow(ctx.obj['vault'], ctx.obj['config'])
     result = workflow.get_moc(name)
-    _print_result(result)
+    _print_moc_detail(result)
 
 
 @mocs.command()
