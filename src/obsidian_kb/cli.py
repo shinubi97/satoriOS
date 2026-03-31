@@ -170,6 +170,16 @@ def cli(ctx, vault):
 
     try:
         config = get_config()
+        # 如果用户指定了 --vault，覆盖配置中的 vault_path
+        if vault:
+            config = Config(
+                vault_path=Path(vault),
+                default_area=config.default_area,
+                quiet_mode=config.quiet_mode,
+                auto_confirm_threshold=config.auto_confirm_threshold,
+                auto_confirm_actions=config.auto_confirm_actions,
+                templates=config.templates
+            )
     except ValueError:
         # 配置不存在，使用默认值
         if vault:
