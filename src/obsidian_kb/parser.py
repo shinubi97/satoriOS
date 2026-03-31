@@ -226,46 +226,39 @@ class MarkdownParser:
             heading: 要查找的标题文本
 
         Returns:
-            章节内容（不包括标题本身），如果未找到则返回 None
+            章节内容（包括 markdown 格式，不包括标题本身），如果未找到则返回 None
         """
-        tokens = self.parse(content)
-
-        # 找到目标标题的级别和位置
+        lines = content.split('\n')
         target_level = None
-        target_index = None
+        section_lines = []
+        in_section = False
 
-        for i, token in enumerate(tokens):
-            if token.type == "heading_open":
-                level = int(token.tag[1])
-                if i + 1 < len(tokens) and tokens[i + 1].type == "inline":
-                    text = tokens[i + 1].content
-                    if text == heading:
-                        target_level = level
-                        target_index = i
+        for line in lines:
+            # 检查是否是标题
+            heading_match = re.match(r'^#{1,6}\s+(.+)$', line)
+            if heading_match:
+                level = len(line) - len(line.lstrip('#'))
+                title = heading_match.group(1).strip()
+
+                if in_section:
+                    # 如果已经在章节内，遇到同级或更高级标题则结束
+                    if level <= target_level:
                         break
+                else:
+                    # 检查是否是目标标题
+                    if title == heading:
+                        target_level = level
+                        in_section = True
+                        continue  # 跳过标题行本身
+            else:
+                # 非标题行
+                if in_section:
+                    section_lines.append(line)
 
-        if target_index is None:
+        if not in_section:
             return None
 
-        # 收集该标题下的内容，直到遇到同级或更高级的标题
-        section_tokens = []
-        i = target_index + 2  # 跳过 heading_open 和 inline
-        while i < len(tokens):
-            token = tokens[i]
-            if token.type == "heading_open":
-                level = int(token.tag[1])
-                if level <= target_level:
-                    break
-            section_tokens.append(token)
-            i += 1
-
-        # 从 tokens 中提取文本
-        text_parts = []
-        for token in section_tokens:
-            if token.type == "inline":
-                text_parts.append(token.content)
-
-        return " ".join(text_parts) if text_parts else ""
+        return '\n'.join(section_lines)
 
     def extract_tags(self, content: str) -> List[str]:
         """提取所有标签.
